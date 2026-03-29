@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>myenergi System Builder</title>
+  <link href="https://fonts.googleapis.com/css2?family=Overpass:ital,wght@0,300;0,700;1,800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d0d0d; font-family: 'Overpass', sans-serif; color: #ddd; }
+    select option { background: #1a1a1a; color: #ddd; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    const G = "#40ff7a", DARK = "#0d0d0d", CARD = "#1a1a1a", BORDER = "#252525";
+    const MUTED = "#666", WARN = "#f91561", YELLOW = "#ffe066", BLUE = "#56c1dd";
+
+    const INVERTER_BRANDS = ["Fronius","Sungrow","Goodwe","Sigenergy","SolarEdge","Enphase","SMA","Growatt","Solis","iStore (Huawei OEM)","Other"];
+
+    const BATTERIES = [
+      { id: 14, label: "myenergi libbi",            type: "AC or DC" },
+      { id: 4,  label: "Sigenergy SigenStor",       type: "DC Hybrid" },
+      { id: 1,  label: "Tesla Powerwall 2",         type: "AC Coupled" },
+      { id: 2,  label: "Tesla Powerwall 3",         type: "AC or DC" },
+      { id: 3,  label: "Sungrow SBR / SBH",        type: "DC Hybrid" },
+      { id: 11, label: "FoxESS ECS / HV series",   type: "DC Hybrid" },
+      { id: 6,  label: "Alpha ESS Smile / Storion", type: "AC or DC" },
+      { id: 7,  label: "Goodwe Lynx Home U/F",     type: "DC Hybrid" },
+      { id: 5,  label: "BYD HVS / HVM",            type: "DC Hybrid" },
+      { id: 8,  label: "SolarEdge Home Battery",   type: "DC Hybrid" },
+      { id: 9,  label: "Enphase IQ Battery",       type: "AC Coupled" },
+      { id: 10, label: "iStore Battery",           type: "DC Hybrid" },
+      { id: 12, label: "Franklin Home Power",      type: "AC Coupled" },
+      { id: 13, label: "Deye SUN series",          type: "DC Hybrid" },
+      { id: 99, label: "Other",                    type: null },
+    ];
+
+    const PRODUCTS = [
+      { id: 2, name: "zappi multiphase (7 / 22kW)", ctsIncluded: 3, ctsSupported: 3 },
+      { id: 3, name: "GLO",   ctsIncluded: 1, ctsSupported: 2 },
+      { id: 4, name: "eddi",  ctsIncluded: 1, ctsSupported: 2 },
+      { id: 5, name: "eddi+", ctsIncluded: 3, ctsSupported: 3 },
+      { id: 6, name: "libbi", ctsIncluded: 1, ctsSupported: 3 },
+    ];
+
+    function Icon({ name }) {
+      const box = { width: 48, height: 48, background: "#000", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+      if (name === "zappi multiphase (7 / 22kW)") return (
+        <div style={box}><svg width="36" height="46" viewBox="0 0 36 46" fill="none">
+          <path d="M4 13 Q4 2 18 2 Q32 2 32 13 L32 38 Q32 44 18 44 Q4 44 4 38 Z" stroke="white" strokeWidth="1.5" fill="none"/>
+          <rect x="10" y="7" width="16" height="9" rx="1.5" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="12.5" cy="20" r="1.2" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="17" cy="20" r="1.2" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="21.5" cy="20" r="1.2" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="26" cy="20" r="1.2" stroke="white" strokeWidth="1" fill="none"/>
+          <path d="M20 24L17 29.5h2.5L18 35l5.5-7.5H21z" fill="white"/>
+          <circle cx="18" cy="38" r="4.5" stroke="white" strokeWidth="1.2" fill="none"/>
+          <circle cx="18" cy="38" r="2" stroke="white" strokeWidth="1" fill="none"/>
+          <text x="32" y="32" fontSize="5.5" fill="white" fontFamily="sans-serif" textAnchor="middle" transform="rotate(90,32,28)">zappi</text>
+        </svg></div>
+      );
+      if (name === "GLO") return (
+        <div style={box}><svg width="24" height="46" viewBox="0 0 24 46" fill="none">
+          <rect x="1" y="1" width="22" height="44" rx="11" stroke="white" strokeWidth="1.5" fill="none"/>
+          <path d="M13.5 10L11 15h2L11.5 20l4.5-6h-2.3z" fill="white"/>
+          <text x="12" y="7" fontSize="4" fill="white" fontFamily="sans-serif" textAnchor="middle" transform="rotate(-90,12,18)" dominantBaseline="middle">zappiGLO</text>
+          <circle cx="12" cy="33" r="7" stroke="white" strokeWidth="1.2" fill="none"/>
+          <circle cx="12" cy="33" r="3.5" stroke="white" strokeWidth="1" fill="none"/>
+        </svg></div>
+      );
+      if (name === "eddi") return (
+        <div style={box}><svg width="40" height="44" viewBox="0 0 40 44" fill="none">
+          <rect x="2" y="4" width="36" height="39" rx="4" stroke="white" strokeWidth="1.5" fill="none"/>
+          <line x1="13" y1="4" x2="13" y2="0" stroke="white" strokeWidth="1.3"/>
+          <line x1="27" y1="4" x2="27" y2="0" stroke="white" strokeWidth="1.3"/>
+          <rect x="9" y="9" width="22" height="12" rx="1.5" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="13" cy="26" r="1.4" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="18" cy="26" r="1.4" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="23" cy="26" r="1.4" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="28" cy="26" r="1.4" stroke="white" strokeWidth="1" fill="none"/>
+          <path d="M22 31L18.5 37h2.5L19.5 43l5.5-7.5H22z" fill="white"/>
+          <text x="5.5" y="25" fontSize="5.5" fill="white" fontFamily="sans-serif" textAnchor="middle" transform="rotate(-90,5.5,25)">eddi</text>
+        </svg></div>
+      );
+      if (name === "eddi+") return (
+        <div style={box}><svg width="40" height="44" viewBox="0 0 40 44" fill="none">
+          <rect x="2" y="4" width="36" height="39" rx="4" stroke="white" strokeWidth="1.5" fill="none"/>
+          <line x1="13" y1="4" x2="13" y2="0" stroke="white" strokeWidth="1.3"/>
+          <line x1="27" y1="4" x2="27" y2="0" stroke="white" strokeWidth="1.3"/>
+          <line x1="20" y1="4" x2="20" y2="43" stroke="white" strokeWidth="0.8"/>
+          <rect x="21" y="9" width="15" height="10" rx="1.5" stroke="white" strokeWidth="1" fill="none"/>
+          <circle cx="23" cy="24" r="1.2" stroke="white" strokeWidth="0.9" fill="none"/>
+          <circle cx="27" cy="24" r="1.2" stroke="white" strokeWidth="0.9" fill="none"/>
+          <circle cx="31" cy="24" r="1.2" stroke="white" strokeWidth="0.9" fill="none"/>
+          <path d="M29 29L26.5 35h2L27 41l4.5-6.5h-2.3z" fill="white"/>
+          <path d="M11 29L8.5 35h2L9 41l4.5-6.5h-2.3z" fill="white"/>
+          <text x="5.5" y="25" fontSize="5" fill="white" fontFamily="sans-serif" textAnchor="middle" transform="rotate(-90,5.5,25)">eddi+</text>
+        </svg></div>
+      );
+      if (name === "libbi") return (
+        <div style={box}><svg width="32" height="46" viewBox="0 0 32 46" fill="none">
+          <path d="M2 6 Q2 2 6 2 L26 2 Q30 2 30 6 L30 42 Q30 45 26 45 L6 45 Q2 45 2 42 Z" stroke="white" strokeWidth="1.5" fill="none"/>
+          <line x1="2" y1="16" x2="30" y2="16" stroke="white" strokeWidth="0.9"/>
+          <line x1="2" y1="32" x2="30" y2="32" stroke="white" strokeWidth="0.9"/>
+          <rect x="9" y="6" width="13" height="7" rx="1.5" stroke="white" strokeWidth="1" fill="none"/>
+          <path d="M18 20L15 26h2.5L16 32l5.5-7.5H19z" fill="white"/>
+          <rect x="13" y="36" width="5" height="7" rx="2.5" stroke="white" strokeWidth="1" fill="none"/>
+          <text x="30" y="26" fontSize="5.5" fill="white" fontFamily="sans-serif" textAnchor="middle" transform="rotate(90,30,26)">libbi</text>
+        </svg></div>
+      );
+      if (name === "harvi") return (
+        <div style={box}><svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <rect x="1" y="1" width="38" height="38" rx="8" stroke="white" strokeWidth="1.5" fill="none"/>
+          <path d="M10 6L7 11.5h2.5L8 17l5.5-7h-2.8z" fill="white"/>
+          <circle cx="15" cy="25" r="6" stroke="white" strokeWidth="1.3" fill="none"/>
+          <circle cx="27" cy="27" r="2.5" stroke="white" strokeWidth="1.1" fill="none"/>
+          <text x="37" y="36" fontSize="6" fill="white" fontFamily="sans-serif" textAnchor="end">harvi</text>
+        </svg></div>
+      );
+      return <div style={{ ...box, fontSize: 9, color: MUTED, textAlign: "center", padding: 4 }}>{name}</div>;
+    }
+
+    const newInv = () => ({ uid: Math.random(), brand: "", phase: "" });
+    const newBat = () => ({ uid: Math.random(), id: "", mode: "" });
+
+    function resolveType(bat) {
+      const found = BATTERIES.find(b => b.id === parseInt(bat.id));
+      if (!found) return null;
+      return found.type === "AC or DC" ? (bat.mode || null) : found.type;
+    }
+
+    function calcResults(cfg, monitorSolar, monitorBattery) {
+      const { phase, inverters, batteries, selections } = cfg;
+      if (!phase) return null;
+      const is1ph = phase === "1ph", is2ph = phase === "2ph", is3ph = phase === "3ph";
+      const multi = is2ph || is3ph;
+      const comps = [];
+      comps.push({ label: "Grid connection", cts: multi ? 3 : 1, isGrid: true });
+      if (monitorSolar) {
+        inverters.filter(inv => inv.brand).forEach(inv => {
+          const iph = inv.phase || (is1ph ? "1ph" : "3ph");
+          const pairedDC = batteries.some(b => resolveType(b) === "DC Hybrid");
+          if (pairedDC) comps.push({ label: `DC Hybrid: ${inv.brand} (${iph})`, cts: iph === "1ph" ? 1 : (multi ? 3 : 1), isBattery: true });
+          else comps.push({ label: `Solar inverter: ${inv.brand} (${iph})`, cts: iph === "1ph" ? 1 : (multi ? 3 : 1), isSolar: true });
+        });
+      }
+      if (monitorBattery) {
+        batteries.filter(b => resolveType(b) === "AC Coupled").forEach(b => {
+          const found = BATTERIES.find(x => x.id === parseInt(b.id));
+          comps.push({ label: `Battery (AC): ${found?.label || ""}`, cts: 1, isBattery: true });
+        });
+      }
+      const validComps = comps.filter(c => c.cts > 0);
+      const totalCTs = validComps.reduce((s, c) => s + c.cts, 0);
+      const solarBatCTs = validComps.filter(c => c.isSolar || c.isBattery).reduce((s, c) => s + c.cts, 0);
+      const gridCTs = validComps.filter(c => c.isGrid).reduce((s, c) => s + c.cts, 0);
+      const selProds = Object.entries(selections || {}).map(([id, qty]) => ({ ...PRODUCTS.find(p => p.id === parseInt(id)), qty })).filter(p => p?.name && p.qty > 0);
+      const master = selProds.reduce((best, p) => !best || p.ctsSupported > best.ctsSupported ? p : best, null);
+      const ctsSupported = master?.ctsSupported || 0;
+      const ctsIncluded = selProds.reduce((s, p) => s + p.ctsIncluded * p.qty, 0);
+      const additionalCTs = Math.max(0, totalCTs - ctsIncluded);
+      let harvisNeeded = 0;
+      if (is1ph) harvisNeeded = Math.ceil(Math.max(0, totalCTs - ctsSupported) / 3);
+      else if (is2ph) harvisNeeded = Math.ceil(totalCTs / 3);
+      else {
+        const acBatCTs = validComps.filter(c => c.isBattery && !c.label.startsWith("DC")).reduce((s, c) => s + c.cts, 0);
+        const dcCTs = validComps.filter(c => c.isBattery && c.label.startsWith("DC")).reduce((s, c) => s + c.cts, 0);
+        const sCTs = validComps.filter(c => c.isSolar).reduce((s, c) => s + c.cts, 0);
+        harvisNeeded = Math.ceil((sCTs + acBatCTs + dcCTs) / 3);
+        if (ctsSupported < gridCTs) harvisNeeded += Math.ceil((gridCTs - ctsSupported) / 3);
+      }
+      const hasSolar = inverters.some(i => i.brand);
+      const hasAcBat = batteries.some(b => resolveType(b) === "AC Coupled");
+      return { validComps, totalCTs, gridCTs, solarBatCTs, harvisNeeded, ctsSupported, ctsIncluded, additionalCTs, selProds, master, is2ph, hasSolar, hasAcBat };
+    }
+
+    const SelBtn = ({ active, onClick, children }) => (
+      <button onClick={onClick} style={{ padding: "9px 20px", borderRadius: 999, cursor: "pointer", fontSize: 13, border: `1px solid ${active ? G : BORDER}`, background: active ? "rgba(64,255,122,0.1)" : CARD, color: active ? G : "#bbb", fontFamily: "inherit", transition: "all 0.15s", whiteSpace: "nowrap" }}>{children}</button>
+    );
+    const SecLabel = ({ children }) => (
+      <div style={{ fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>{children}</div>
+    );
+    const NextBtn = ({ onClick, disabled, children }) => (
+      <button onClick={onClick} disabled={disabled} style={{ background: disabled ? BORDER : G, color: disabled ? MUTED : "#000", border: "none", borderRadius: 999, padding: "11px 28px", fontSize: 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{children}</button>
+    );
+    const BackBtn = ({ onClick }) => (
+      <button onClick={onClick} style={{ background: "none", border: `1px solid ${BORDER}`, color: MUTED, borderRadius: 999, padding: "11px 24px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
+    );
+    const AddBtn = ({ onClick, children }) => (
+      <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: `1px dashed ${BORDER}`, color: G, borderRadius: 999, padding: "10px 20px", fontSize: 13, cursor: "pointer", fontFamily: "inherit", width: "100%", marginTop: 8, justifyContent: "center" }}>
+        <span style={{ fontSize: 20, lineHeight: 1, fontWeight: 300 }}>+</span> {children}
+      </button>
+    );
+    const Checkbox = ({ checked, onChange, label, sub, color }) => (
+      <div style={{ padding: "12px 16px", background: CARD, border: `1px solid ${checked ? (color || G) : BORDER}`, borderRadius: 8, display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer" }} onClick={onChange}>
+        <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${checked ? (color || G) : MUTED}`, background: checked ? (color || G) : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+          {checked && <span style={{ color: "#000", fontSize: 13, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+        </div>
+        <div>
+          <div style={{ fontSize: 13, color: checked ? (color || G) : "#ddd" }}>{label}</div>
+          {sub && <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{sub}</div>}
+        </div>
+      </div>
+    );
+
+    const selStyle = { background: CARD, border: `1px solid ${BORDER}`, color: "#ddd", borderRadius: 6, padding: "9px 12px", fontSize: 13, fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box" };
+    const th = { textAlign: "left", padding: "7px 10px", background: "#090909", color: G, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: `1px solid ${BORDER}` };
+    const td = i => ({ padding: "8px 10px", background: i % 2 === 0 ? CARD : "#161616", borderBottom: `1px solid ${BORDER}`, fontSize: 12 });
+    const statBox = (label, val, col) => (
+      <div style={{ flex: 1, padding: "14px 10px", background: CARD, borderRadius: 8, border: `1px solid ${BORDER}`, textAlign: "center" }}>
+        <div style={{ fontSize: 28, fontWeight: 800, color: col }}>{val}</div>
+        <div style={{ fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 4 }}>{label}</div>
+      </div>
+    );
+
+    function InverterCard({ inv, phase, onChange, onRemove }) {
+      const needsPhase = phase === "3ph" || phase === "2ph";
+      return (
+        <div style={{ background: CARD, border: `1px solid ${inv.brand ? G : BORDER}`, borderRadius: 8, padding: "14px 16px", marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <span style={{ fontSize: 12, color: inv.brand ? G : MUTED, fontWeight: 600 }}>{inv.brand || "Solar inverter"}</span>
+            <button onClick={onRemove} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+          </div>
+          <div>
+            <SecLabel>Brand</SecLabel>
+            <select value={inv.brand} onChange={e => onChange({ ...inv, brand: e.target.value })} style={selStyle}>
+              <option value="">Select brand...</option>
+              {INVERTER_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          {needsPhase && (
+            <div style={{ marginTop: 10 }}>
+              <SecLabel>Inverter Phase</SecLabel>
+              <div style={{ display: "flex", gap: 8 }}>
+                <SelBtn active={inv.phase === "1ph"} onClick={() => onChange({ ...inv, phase: "1ph" })}>1ph</SelBtn>
+                <SelBtn active={inv.phase === "3ph"} onClick={() => onChange({ ...inv, phase: "3ph" })}>3ph</SelBtn>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function BatteryCard({ bat, onChange, onRemove }) {
+      const found = BATTERIES.find(b => b.id === parseInt(bat.id));
+      const needsMode = found?.type === "AC or DC";
+      return (
+        <div style={{ background: CARD, border: `1px solid ${bat.id ? G : BORDER}`, borderRadius: 8, padding: "14px 16px", marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <span style={{ fontSize: 12, color: bat.id ? G : MUTED, fontWeight: 600 }}>{found?.label || "Battery"}</span>
+            <button onClick={onRemove} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+          </div>
+          <div>
+            <SecLabel>Brand / Model</SecLabel>
+            <select value={bat.id} onChange={e => onChange({ ...bat, id: e.target.value, mode: "" })} style={selStyle}>
+              <option value="">Select battery...</option>
+              {BATTERIES.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
+            </select>
+          </div>
+          {needsMode && (
+            <div style={{ marginTop: 10 }}>
+              <SecLabel>Installation Mode</SecLabel>
+              <div style={{ display: "flex", gap: 8 }}>
+                <SelBtn active={bat.mode === "AC Coupled"} onClick={() => onChange({ ...bat, mode: "AC Coupled" })}>AC Coupled</SelBtn>
+                <SelBtn active={bat.mode === "DC Hybrid"} onClick={() => onChange({ ...bat, mode: "DC Hybrid" })}>DC Hybrid</SelBtn>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function App() {
+      const [step, setStep] = useState(0);
+      const [cfg, setCfg] = useState({ phase: null, inverters: [], batteries: [], selections: {} });
+      const [wireless, setWireless] = useState(false);
+      const [monitorSolar, setMonitorSolar] = useState(true);
+      const [monitorBattery, setMonitorBattery] = useState(true);
+
+      const setPhase = v => setCfg(c => ({ ...c, phase: v }));
+      const setInverters = fn => setCfg(c => ({ ...c, inverters: fn(c.inverters) }));
+      const setBatteries = fn => setCfg(c => {
+        const next = fn(c.batteries);
+        const hasLibbi = next.some(b => parseInt(b.id) === 14);
+        const hadLibbi = c.batteries.some(b => parseInt(b.id) === 14);
+        let sel = { ...c.selections };
+        if (hasLibbi && !hadLibbi && !sel[6]) sel[6] = 1;
+        if (!hasLibbi && hadLibbi) sel[6] = 0;
+        return { ...c, batteries: next, selections: sel };
+      });
+
+      const result = useMemo(() => calcResults(cfg, monitorSolar, monitorBattery), [cfg, monitorSolar, monitorBattery]);
+      const STEPS = ["Site", "Battery", "Products", "Results"];
+      const needsInvPhase = cfg.phase === "3ph" || cfg.phase === "2ph";
+      const step0ok = !!cfg.phase;
+      const step2ok = Object.values(cfg.selections).some(q => q > 0);
+
+      const ctConfig = useMemo(() => {
+        if (!result) return [];
+        const { validComps, ctsSupported } = result;
+        const is3ph = cfg.phase === "3ph", is2ph = cfg.phase === "2ph", is1ph = cfg.phase === "1ph";
+        const needsGridHarvi = is2ph || (is3ph && ctsSupported < 3) || (wireless && is1ph);
+        const rows = [];
+        const acBatComps = validComps.filter(c => c.isBattery && !c.label.startsWith("DC"));
+        const otherComps = validComps.filter(c => !c.isBattery || c.label.startsWith("DC"));
+        otherComps.forEach(comp => {
+          let input, routing, note = null;
+          if (comp.isGrid) {
+            if (needsGridHarvi) { input = is3ph || is2ph ? "harvi — all 3 phases" : "harvi — CT1"; routing = "harvi"; }
+            else if (is3ph) { input = "CT1, CT2, CT3 (one per phase)"; routing = "device"; }
+            else { input = "CT1"; routing = "device"; }
+          } else if (comp.isSolar) {
+            if (wireless || is3ph || is2ph) { input = wireless && is1ph ? "harvi — CT2" : "harvi — pair wirelessly"; routing = "harvi"; }
+            else { input = "CT2"; routing = "device"; }
+          } else {
+            if (wireless || is3ph || is2ph) { input = "harvi — pair wirelessly"; routing = "harvi"; }
+            else { input = "CT3"; routing = "device"; }
+          }
+          rows.push({ component: comp.label, type: comp.isGrid ? "Grid" : comp.isSolar ? "Generation Only" : "Gen & Battery", input, routing, note, cts: comp.cts });
+        });
+        if (acBatComps.length > 0) {
+          const totalAcCTs = acBatComps.reduce((s, c) => s + c.cts, 0);
+          const label = acBatComps.length === 1 ? acBatComps[0].label : `AC Batteries (${acBatComps.length} units)`;
+          let input, routing;
+          if (wireless || is3ph || is2ph) { input = `harvi — pair wirelessly (${totalAcCTs} CT${totalAcCTs > 1 ? "s" : ""} share 1 harvi)`; routing = "harvi"; }
+          else { input = "CT3"; routing = "device"; }
+          rows.push({ component: label, type: "AC Battery", input, routing, note: acBatComps.length > 1 ? `${acBatComps.length} AC batteries share one harvi — connect each CT to available inputs on the same harvi unit.` : null, cts: totalAcCTs });
+        }
+        return rows;
+      }, [result, cfg, wireless, monitorSolar, monitorBattery]);
+
+      const incr = id => setCfg(c => { const tot = Object.values(c.selections).reduce((s,q)=>s+q,0); if(tot>=5) return c; return {...c, selections:{...c.selections,[id]:(c.selections[id]||0)+1}}; });
+      const decr = id => setCfg(c => ({...c, selections:{...c.selections,[id]:Math.max(0,(c.selections[id]||0)-1)}}));
+      const goToResults = () => { setMonitorSolar(true); setMonitorBattery(true); setStep(3); };
+      const resetAll = () => { setStep(0); setCfg({ phase: null, inverters: [], batteries: [], selections: {} }); setWireless(false); setMonitorSolar(true); setMonitorBattery(true); };
+
+      return (
+        <div style={{ background: DARK, minHeight: "100vh", fontFamily: "'Overpass', sans-serif", color: "#ddd", maxWidth: 660, margin: "0 auto" }}>
+
+          <div style={{ display: "flex", background: "#0a0a0a", borderBottom: `1px solid ${BORDER}` }}>
+            {STEPS.map((s, i) => (
+              <div key={i} onClick={() => i < step && setStep(i)} style={{ flex: 1, padding: "10px 0", textAlign: "center", fontSize: 10, color: i === step ? G : i < step ? "#777" : "#3a3a3a", borderBottom: i === step ? `2px solid ${G}` : "2px solid transparent", cursor: i < step ? "pointer" : "default", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {i < step ? `✓ ${s}` : s}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ padding: 24 }}>
+
+            {step === 0 && (
+              <div>
+                <h2 style={{ margin: "0 0 22px", color: "#fff", fontWeight: 800, fontStyle: "italic", fontSize: 18 }}>Site Details</h2>
+                <div style={{ marginBottom: 24 }}>
+                  <SecLabel>Supply Phase</SecLabel>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {["1ph","2ph","3ph"].map(p => <SelBtn key={p} active={cfg.phase === p} onClick={() => setPhase(p)}>{p}</SelBtn>)}
+                  </div>
+                  {cfg.phase === "2ph" && <div style={{ marginTop: 10, padding: "10px 14px", background: "rgba(86,193,221,0.08)", border: `1px solid ${BLUE}`, borderRadius: 6, fontSize: 12, color: BLUE }}>ⓘ 2-phase installation is not a standard configuration, which can lead to unexpected device behaviour. We recommend contacting myenergi support before proceeding.</div>}
+                </div>
+                <div style={{ marginBottom: 24 }}>
+                  <SecLabel>Solar Inverters</SecLabel>
+                  {cfg.inverters.map((inv, i) => (
+                    <InverterCard key={inv.uid} inv={inv} phase={cfg.phase}
+                      onChange={updated => setInverters(prev => prev.map((x, j) => j === i ? updated : x))}
+                      onRemove={() => setInverters(prev => prev.filter((_, j) => j !== i))}/>
+                  ))}
+                  {cfg.inverters.length === 0 && <AddBtn onClick={() => setInverters(prev => [...prev, newInv()])}>Add solar inverter</AddBtn>}
+                  {cfg.inverters.length > 0 && cfg.inverters.length < 3 && <AddBtn onClick={() => setInverters(prev => [...prev, newInv()])}>Add another inverter</AddBtn>}
+                </div>
+                <NextBtn onClick={() => setStep(1)} disabled={!step0ok}>Next →</NextBtn>
+              </div>
+            )}
+
+            {step === 1 && (
+              <div>
+                <h2 style={{ margin: "0 0 6px", color: "#fff", fontWeight: 800, fontStyle: "italic", fontSize: 18 }}>Battery</h2>
+                <p style={{ margin: "0 0 20px", fontSize: 12, color: MUTED }}>Skip this step if no battery is being installed.</p>
+                {cfg.batteries.map((bat, i) => (
+                  <BatteryCard key={bat.uid} bat={bat}
+                    onChange={updated => setBatteries(prev => prev.map((x, j) => j === i ? updated : x))}
+                    onRemove={() => setBatteries(prev => prev.filter((_, j) => j !== i))}/>
+                ))}
+                {cfg.batteries.length === 0 && <AddBtn onClick={() => setBatteries(prev => [...prev, newBat()])}>Add battery</AddBtn>}
+                {cfg.batteries.length > 0 && cfg.batteries.length < 3 && <AddBtn onClick={() => setBatteries(prev => [...prev, newBat()])}>Add another battery</AddBtn>}
+                <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+                  <BackBtn onClick={() => setStep(0)}/>
+                  <NextBtn onClick={() => setStep(2)}>Next →</NextBtn>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (() => {
+              const totalDevices = Object.values(cfg.selections).reduce((s, q) => s + q, 0);
+              const atLimit = totalDevices >= 5;
+              return (
+                <div>
+                  <h2 style={{ margin: "0 0 6px", color: "#fff", fontWeight: 800, fontStyle: "italic", fontSize: 18 }}>myenergi Products</h2>
+                  <p style={{ margin: "0 0 12px", fontSize: 12, color: MUTED }}>Multiple devices use controller/secondary config — CTs connect to controller only. Maximum 5 devices per system.</p>
+                  <div style={{ marginBottom: 12, fontSize: 12, color: atLimit ? WARN : MUTED }}>
+                    Devices selected: <span style={{ fontWeight: 700, color: atLimit ? WARN : G }}>{totalDevices} / 5</span>
+                    {atLimit && <span style={{ marginLeft: 8 }}>— Maximum reached</span>}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+                    {PRODUCTS.map(p => {
+                      const qty = cfg.selections[p.id] || 0;
+                      return (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: qty > 0 ? "rgba(64,255,122,0.07)" : CARD, border: `1px solid ${qty > 0 ? G : BORDER}`, borderRadius: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <Icon name={p.name}/>
+                            <div>
+                              <div style={{ fontSize: 14, color: qty > 0 ? G : "#ddd", fontWeight: qty > 0 ? 700 : 400 }}>{p.name}</div>
+                              <div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>{p.ctsIncluded} CT{p.ctsIncluded !== 1 ? "s" : ""} included · supports {p.ctsSupported} CT{p.ctsSupported !== 1 ? "s" : ""}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <button onClick={() => decr(p.id)} style={{ background: "#222", border: "none", color: "#fff", borderRadius: 999, width: 30, height: 30, cursor: "pointer", fontSize: 18, lineHeight: 1, fontFamily: "inherit" }}>−</button>
+                            <span style={{ width: 22, textAlign: "center", fontSize: 15, color: qty > 0 ? G : MUTED, fontWeight: 700 }}>{qty}</span>
+                            <button onClick={() => incr(p.id)} style={{ background: atLimit ? "#333" : G, border: "none", color: atLimit ? "#555" : "#000", borderRadius: 999, width: 30, height: 30, cursor: atLimit ? "not-allowed" : "pointer", fontSize: 18, lineHeight: 1, fontFamily: "inherit" }}>+</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <BackBtn onClick={() => setStep(1)}/>
+                    <NextBtn onClick={goToResults} disabled={!step2ok}>View Results →</NextBtn>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {step === 3 && result && (() => {
+              const harviTotal = result.harvisNeeded + (wireless && cfg.phase === "1ph" ? 1 : 0);
+              return (
+                <div>
+                  <h2 style={{ margin: "0 0 16px", color: "#fff", fontWeight: 800, fontStyle: "italic", fontSize: 18 }}>System Summary</h2>
+                  {result.is2ph && <div style={{ marginBottom: 16, padding: "12px 14px", background: "rgba(86,193,221,0.08)", border: `1px solid ${BLUE}`, borderRadius: 6, fontSize: 12, color: BLUE }}>ⓘ 2-phase installation is not a standard configuration, which can lead to unexpected device behaviour. We recommend contacting myenergi support before proceeding.</div>}
+
+                  <div style={{ marginBottom: 20, padding: "10px 14px", background: CARD, borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 12, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    <span style={{ background: "#222", padding: "2px 8px", borderRadius: 4, color: "#ddd" }}>{cfg.phase}</span>
+                    {cfg.inverters.filter(i=>i.brand).map((inv,i)=><span key={i} style={{ background: "#222", padding: "2px 8px", borderRadius: 4, color: "#ddd" }}>{inv.brand}{inv.phase ? ` (${inv.phase})` : ""}</span>)}
+                    {cfg.batteries.filter(b=>b.id).map((bat,i)=>{ const f=BATTERIES.find(x=>x.id===parseInt(bat.id)); return <span key={i} style={{ background: "#222", padding: "2px 8px", borderRadius: 4, color: "#ddd" }}>{f?.label}{bat.mode ? ` (${bat.mode})` : ""}</span>; })}
+                  </div>
+
+                  {(result.hasSolar || result.hasAcBat) && (
+                    <div style={{ marginBottom: 16 }}>
+                      <SecLabel>Monitoring Options</SecLabel>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {result.hasSolar && <Checkbox checked={monitorSolar} onChange={() => setMonitorSolar(m => !m)} label="Monitor solar generation" sub="Required to see self-consumption % and solar output on your myenergi device + app. Solar-aware charging is not impacted."/>}
+                        {result.hasAcBat && <Checkbox checked={monitorBattery} onChange={() => setMonitorBattery(m => !m)} label="Monitor battery output" sub="Shows battery charge/discharge on your myenergi device + app. Solar-aware charging is not impacted."/>}
+                      </div>
+                    </div>
+                  )}
+
+                  {cfg.phase === "1ph" && (
+                    <div style={{ marginBottom: 20 }}>
+                      <Checkbox checked={wireless} onChange={() => setWireless(w => !w)} label="Use wireless CT connection (harvi)" sub="Tick if CTs will connect via harvi instead of directly to the myenergi device" color={YELLOW}/>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+                    {statBox("CTs Required", result.totalCTs, "#fff")}
+                    {statBox("CTs Included", result.ctsIncluded, "#fff")}
+                    {statBox("Additional CTs", result.additionalCTs, result.additionalCTs > 0 ? G : MUTED)}
+                    {statBox("harvis Required", harviTotal, harviTotal > 0 ? YELLOW : MUTED)}
+                  </div>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <SecLabel>CT Requirements</SecLabel>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead><tr>
+                          <th style={th}>Component</th>
+                          <th style={{ ...th, textAlign: "center", width: 50 }}>CTs</th>
+                          <th style={th}>CT Type</th>
+                          <th style={th}>Input</th>
+                          <th style={th}>Routing</th>
+                        </tr></thead>
+                        <tbody>
+                          {ctConfig.map((row, i) => (
+                            <React.Fragment key={i}>
+                              <tr>
+                                <td style={{ ...td(i), color: "#ccc" }}>{row.component}</td>
+                                <td style={{ ...td(i), textAlign: "center", color: G, fontWeight: 700 }}>{row.cts}</td>
+                                <td style={{ ...td(i), color: BLUE }}>{row.type}</td>
+                                <td style={{ ...td(i), color: row.routing === "harvi" ? YELLOW : MUTED }}>{row.input}</td>
+                                <td style={{ ...td(i), color: row.routing === "harvi" ? YELLOW : MUTED }}>
+                                  {row.routing === "harvi" && wireless && cfg.phase === "1ph" ? `→ wire to harvi, pair with ${result.master?.name || "myenergi device"}` : row.routing === "harvi" ? "→ harvi" : "→ wire to myenergi device"}
+                                </td>
+                              </tr>
+                              {row.note && <tr><td colSpan={5} style={{ padding: "6px 10px 10px", background: i % 2 === 0 ? CARD : "#161616", borderBottom: `1px solid ${BORDER}` }}><div style={{ padding: "7px 10px", background: "rgba(255,224,102,0.08)", border: "1px solid rgba(255,224,102,0.3)", borderRadius: 5, fontSize: 11, color: YELLOW }}>⚠️ {row.note}</div></td></tr>}
+                            </React.Fragment>
+                          ))}
+                          <tr>
+                            <td style={{ padding: "8px 10px", color: "#fff", fontWeight: 700, borderTop: `2px solid ${BORDER}`, fontSize: 12 }}>Total</td>
+                            <td style={{ padding: "8px 10px", textAlign: "center", color: G, fontWeight: 700, borderTop: `2px solid ${BORDER}`, fontSize: 12 }}>{result.totalCTs}</td>
+                            <td colSpan={3} style={{ borderTop: `2px solid ${BORDER}` }}/>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 24 }}>
+                    <SecLabel>Bill of Materials</SecLabel>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead><tr>
+                        <th style={th}>Item</th>
+                        <th style={{ ...th, textAlign: "center", width: 60 }}>Qty</th>
+                      </tr></thead>
+                      <tbody>
+                        {result.selProds.map((p, i) => (
+                          <tr key={i}>
+                            <td style={td(i)}><div style={{ display: "flex", alignItems: "center", gap: 10 }}><Icon name={p.name}/><span style={{ color: "#ddd" }}>{p.name}</span></div></td>
+                            <td style={{ ...td(i), textAlign: "center", color: "#fff", fontWeight: 700 }}>{p.qty}</td>
+                          </tr>
+                        ))}
+                        {harviTotal > 0 && (() => { const i = result.selProds.length; return (
+                          <tr><td style={td(i)}><div style={{ display: "flex", alignItems: "center", gap: 10 }}><Icon name="harvi"/><span style={{ color: "#ddd" }}>harvi</span></div></td><td style={{ ...td(i), textAlign: "center", color: YELLOW, fontWeight: 700 }}>{harviTotal}</td></tr>
+                        ); })()}
+                        {result.additionalCTs > 0 && (() => { const i = result.selProds.length + (harviTotal > 0 ? 1 : 0); return (
+                          <tr><td style={{ ...td(i), color: "#ddd" }}>Additional CT clamps</td><td style={{ ...td(i), textAlign: "center", color: G, fontWeight: 700 }}>{result.additionalCTs}</td></tr>
+                        ); })()}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <button onClick={resetAll} style={{ background: "none", border: `1px solid ${BORDER}`, color: MUTED, borderRadius: 999, padding: "11px 24px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>← Start over</button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
